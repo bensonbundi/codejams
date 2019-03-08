@@ -1,0 +1,55 @@
+ /*
+to run:
+ node solution.js < small.in
+
+ 
+*/
+process.stdin.resume();
+process.stdin.setEncoding('ascii');
+
+console.time("script");
+
+var input_stdin = "";
+var input_stdin_array = "";
+var input_currentline = 0;
+
+
+
+
+process.stdin.on('data', function (data) {
+    input_stdin += data;
+});
+
+process.stdin.on('end', function () {
+    input_stdin_array = input_stdin.split("\n");
+    main();   
+});
+
+function readLine() {
+    return input_stdin_array[input_currentline++];
+}
+
+/////////////// ignore above this line ////////////////////
+
+function main() {
+
+	let data = readLine();
+	console.log(data)
+	
+//remove vowels
+"aeiouy".split("").forEach(function (item){
+ data = data.replace(item,'');
+});
+//insert .
+let newString ="";
+data.split("").forEach(function (item){
+    newString =newString +"."+item
+   });
+
+
+   //lowercase
+   console.log(newString.toLowerCase());
+}
+
+
+
