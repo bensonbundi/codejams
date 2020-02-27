@@ -9,6 +9,8 @@ EOF
 $ echo -n | node stdin.js
 EOF
 $ node stdin.js < /dev/null
+
+Add book occurrence count - common books less priority
 */
 process.stdin.resume();
 process.stdin.setEncoding('ascii');
@@ -28,6 +30,21 @@ let libsLeft = [];
 let libOrder = [];
 let bookOrder = [];
 let currentLib;
+
+
+d3 =require("d3-queue");
+var q = d3.queue();
+var numCPUs = require('os').cpus().length;
+
+var threads = numCPUs * 5;
+console.log(`numCPUs ${numCPUs} threads ${threads}`);
+//split work to threads
+//var work = Math.floor(loops/threads);
+// for(x=0;x<threads-1 ;x++){
+//     console.log("splitting work");
+//     q.defer(generateWords,work*x,work*(x+1));
+// }
+
 
 //output()
 
@@ -66,8 +83,6 @@ class Lib {
     
     this.actualbooks = actualbooks
     this.booksScanned = []
-    this.started = false;
-    this.mineable = false;
     this.w = 1
     this.v = 1
 
@@ -80,46 +95,58 @@ class Lib {
    // console.log(l.actualbooks);
     var remainingBooks = booksLeft.filter(b => {
 
-      return !b.reg && l.actualbooks.includes(b.pos)
-    }).sort(function (a, b) {//descending
-      if (a.v > b.v) {
+        return !b.reg && l.actualbooks.includes(b.pos)
+      }).sort(function (a, b) {
+      if (a.v > b.v) {//descending
         return -1;
       }else{
         return 1;
       }
-    });
-  //  console.log("remainingBooks: " + remainingBooks.length);
+    }).sort(function (a, b) {//rare books first?
+        if (a.w < b.w) {//asc
+          return -1;
+        }else{
+          return 1;
+        }
+      }).filter(b => {//mineable in time left
 
-    return remainingBooks.slice(0, l.rate);
+        return !b.reg
+      });
+  //  console.log("remainingBooks: " + remainingBooks.length);
+//mine all allowed within pending days
+var books = (days-l.signup)*l.rate;
+books = books <=remainingBooks.length?books:remainingBooks.length;
+    var rbooks =remainingBooks.slice(0,books);
+    console.log(`lib: ${l.pos} remainingBooks ${remainingBooks.length} rbooks ${rbooks.length}`);
+    return rbooks;
   }
-  getBooksScoreLeft() {
+  getBooksScoreLeft(remainingBooks) {
     //track books registered
-    var remainingBooksScore = this.getRemainingBooks().map(b=>b.v).reduce((total, v) => {
-      return total+v;
-    });
+    var remainingBooksScore = remainingBooks.reduce((total, b) => {
+      return total+(b.v/b.w);//rare books worth more?
+    },0);
     console.log("score " + remainingBooksScore);
     return remainingBooksScore;
   }
   getYield() {
-    var yields = this.cache[(daysLeft - this.signupLeft)];
+
+    var yields = this.cache[booksLeft.length];
     if(yields !=null) return yields;
     if (daysLeft - this.signupLeft<0) {
       yields = 0;
     } else {
-     // yields = this.getBooksScoreLeft() * this.rate * 1.0 * (daysLeft - this.signupLeft);
-     yields = this.getBooksScoreLeft() * this.rate * 1.0 * (daysLeft - this.signupLeft)/this.signup;
-     if(yields <0)yields=1000000;
+     // yields = this.getBooksScoreLeft();
+     yields = this.getBooksScoreLeft(this.getRemainingBooks())/this.signup;
+    // yields =1/this.signup;
+     
     }
     console.log(`lib:${this.pos}/${libs.length} yields: ${yields}`);
-    this.cache[(daysLeft - this.signupLeft)]= yields;
+    this.cache[booksLeft.length]= yields;
     return yields;
   }
-  start() {
-    this.started = true;
-    this.mineable = true;
-  }
-  mine() {
-    if (this.started && this.mineable) {
+
+  mine(start) {
+    if (start) {
       var l = this.getRemainingBooks();
       for (var x = 0; x < l.length; x++) {
         booksLeft[l[x].pos].reg = true;
@@ -129,7 +156,6 @@ class Lib {
 
       }
       if (this.getRemainingBooks().length == 0) {
-        this.mineable = false;
         var me = this
         //remove from list
         libsLeft = libsLeft.filter(function (value, index, arr) {
@@ -161,6 +187,12 @@ function main() {
     let book = new Book(x, parseInt(b[x]));
     books.push(book);
   }
+  let bookWeight = books.reduce((acc, val) => {
+    books[val.pos].w = (books[val.pos].w || 0)  + 1
+    acc[val.pos] = (acc[val.pos] || 0)  + 1
+    return acc;
+  }, {});
+
   for (var x = 0; x < libCount; x++) {
     let c = readLine().split(" ");
     let d = readLine().split(" ");
@@ -185,10 +217,6 @@ function knapsack() {
     daysLeft = days - x;
 
     register()
-
-    libOrder.forEach(lib => {
-      lib.mine();
-    });
 
   }
   //output
@@ -221,7 +249,9 @@ function register() {
     //console.log(`libCurrent.signupLeft ${currentLib.pos} ${currentLib.signupLeft}/${currentLib.signup}`);
 
     if (currentLib.signupLeft <= 0) {
-      currentLib.start();//can start mining kesho
+      currentLib.mine(true);//start mining 
+      //q.defer(currentLib.mine,true);
+
       //find new lib
       currentLib = libsLeft[0];
       if(currentLib !=null){
@@ -234,7 +264,9 @@ function register() {
      // console.log(`new lib ${currentLib.pos} ${currentLib.signupLeft}`);
     }
     }
-
+    // q.await(function(error) {
+	// 	console.log(error);
+	// });
   }
 }
 

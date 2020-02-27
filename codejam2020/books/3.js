@@ -89,8 +89,10 @@ class Lib {
       }
     });
   //  console.log("remainingBooks: " + remainingBooks.length);
-
-    return remainingBooks.slice(0, l.rate);
+//mine all allowed within pending days
+var books = (days-l.signup)*l.rate;
+books = books <=remainingBooks.length?books:remainingBooks.length;
+    return remainingBooks.slice(0,books);
   }
   getBooksScoreLeft() {
     //track books registered
@@ -108,7 +110,8 @@ class Lib {
     } else {
      // yields = this.getBooksScoreLeft() * this.rate * 1.0 * (daysLeft - this.signupLeft);
      yields = this.getBooksScoreLeft() * this.rate * 1.0 * (daysLeft - this.signupLeft)/this.signup;
-     if(yields <0)yields=1000000;
+    // yields =1/this.signup;
+     
     }
     console.log(`lib:${this.pos}/${libs.length} yields: ${yields}`);
     this.cache[(daysLeft - this.signupLeft)]= yields;
