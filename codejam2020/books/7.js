@@ -118,7 +118,7 @@ class Lib {
       }).sort(sortBook);
   //  console.log("remainingBooks: " + remainingBooks.length);
 //mine all allowed within pending days
-var books = (days-l.signup)*l.rate;
+var books = (daysLeft-l.signup)*l.rate;
 books = books <=remainingBooks.length?books:remainingBooks.length;
     var rbooks =remainingBooks.slice(0,books);
     console.log(`lib: ${l.pos} remainingBooks ${remainingBooks.length} rbooks ${rbooks.length}`);
@@ -127,7 +127,7 @@ books = books <=remainingBooks.length?books:remainingBooks.length;
   getBooksScoreLeft(remainingBooks) {
     //track books registered
     var remainingBooksScore = remainingBooks.reduce((total, b) => {
-      return total+(b.v/b.w);//rare books worth more?
+      return total+b.v;//rare books worth more?
     },0);
     console.log("score " + remainingBooksScore);
     return remainingBooksScore;
@@ -227,6 +227,22 @@ function sortBook(a,b) {
         if (l[0].signup < l2[0].signup) {
             return 1;
           }else if (l[0].signup > l2[0].signup) {
+            return -1;
+          }
+
+          //popularity?
+        if(a.libs.length<b.libs.length){
+            return 1;
+        }else if(a.libs.length>b.libs.length){
+        return -1;
+        }
+    }else if(order=='weightFirst'){
+        var l = a.getRemainingLibs();
+        var l2 = b.getRemainingLibs();
+        if(l.length>0 && l2.length>0)
+        if (l[0].getYield()/a.v < l2[0].getYield()/b.v) {
+            return 1;
+          }else if (l[0].getYield()/a.v > l2[0].getYield()/b.v) {
             return -1;
           }
 
