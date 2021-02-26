@@ -4,8 +4,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 
-public class SolutionHashcode5 {
-    class Pizza {
+public class SolutionHashcode6 {
+    class Pizza implements Comparable{
         private Set<String> ingredients = new HashSet<>();
 
         public void setIngredients(Set<String> ingredients) {
@@ -39,6 +39,13 @@ public class SolutionHashcode5 {
         public void addIngredient(String ingredient) {
             this.ingredients.add(ingredient);
         }
+
+        @Override
+        public int compareTo(Object o) {
+            Pizza p = (Pizza) o;
+
+            return this.id-p.id;
+        }
     }
     static String inputFilesDirectory = new File("").getAbsolutePath()+"/src/main/resources/"; // Location of input files
     static String outputFilesDirectory = new File("").getAbsolutePath()+"/src/main/resources/"; // Location of output files
@@ -46,7 +53,7 @@ public class SolutionHashcode5 {
 
 
 
-record PizScore(List<SolutionHashcode5.Pizza> list, int ingredients){};
+record PizScore(PriorityQueue<SolutionHashcode6.Pizza> list, int ingredients){};
 
     public static void main(String[] args) {
         String[] inputs = new String[] {"resources/inputs/a_example.in",
@@ -60,8 +67,8 @@ record PizScore(List<SolutionHashcode5.Pizza> list, int ingredients){};
 //        }
 
       //  pizzaDeliverer(args[1]);
-        var result = new SolutionHashcode5();
-        result.pizzaDeliverer("e_many_teams");
+        var result = new SolutionHashcode6();
+        result.pizzaDeliverer("d_many_pizzas");
 
       //  result.permutations(List.of("A","B","C","D","E","F","G","H","I","J","K","L","M","N"));
     }
@@ -124,9 +131,9 @@ record PizScore(List<SolutionHashcode5.Pizza> list, int ingredients){};
 
             while(pizzasLeft>0) {
 
-                PizScore li2= new PizScore(new ArrayList<>(),0);
-                PizScore li3= new PizScore(new ArrayList<>(),0);
-                PizScore li4= new PizScore(new ArrayList<>(),0);
+                PizScore li2= new PizScore(new PriorityQueue<>(),0);
+                PizScore li3= new PizScore(new PriorityQueue<>(),0);
+                PizScore li4= new PizScore(new PriorityQueue<>(),0);
                 if (groupLeft[0]>0)
                 li2 = best( list,2);
                 if (groupLeft[1]>0)
@@ -152,12 +159,13 @@ record PizScore(List<SolutionHashcode5.Pizza> list, int ingredients){};
                 }else {
                     li = li4;
                 }
-                if(li2r>=li3r) {
-                    li = li2;
-                }else if(li3r>=li4r) {
+
+                if(li4r>=li3r) {
+                    li = li4;
+                }else if(li3r>=li2r) {
                     li = li3;
                 }else {
-                    li = li4;
+                    li = li2;
                 }
 
 //                if(groupLeft[2]>0){
@@ -177,8 +185,8 @@ record PizScore(List<SolutionHashcode5.Pizza> list, int ingredients){};
                     if(pizzasLeft>=li.list().size() && groupLeft[li.list().size()-2]>0){
                         groupLeft[li.list().size()-2] -=1;
                         String team= "";
-                        for(int y=0;y<li.list().size();y++){
-                           Pizza p = li.list().get(y);
+                        while(!li.list().isEmpty()){
+                           Pizza p = li.list().poll();
                             list.remove(p);
                           //  groupPoints +=p.getNewIngredients();
                             pizzasLeft -=1;
@@ -221,79 +229,44 @@ record PizScore(List<SolutionHashcode5.Pizza> list, int ingredients){};
         }
     }
 
-    public  void permutations(List<String> s)
-    {
-        // create an empty ArrayList to store (partial) permutations
-        List<List<String>> partial = new ArrayList<>();
 
-        // initialize the list with the first character
-        partial.add(List.of(s.get(0)));
-
-        // do for every character of the specified list
-        for (int i = 1; i < s.size(); i++)
-        {
-            // consider previously constructed partial permutation one by one
-
-            // (iterate backwards to avoid ConcurrentModificationException)
-            for (int j = partial.size() - 1; j >= 0 ; j--)
-            {
-                // remove current partial permutation from the ArrayList
-                List<String> str = partial.remove(j);
-
-                // Insert next character of the specified string in all
-                // possible positions of current partial permutation. Then
-                // insert each of these newly constructed string in the list
-
-                for (int k = 0; k <= str.size(); k++)
-                {
-                   // partial.add(str.substring(0, k) + s.charAt(i) + str.substring(k));
-                    List<String> l = new ArrayList<>(str.subList(0, k));
-                    l.add(s.get(i));
-                    l.addAll(str.subList(k, str.size()));
-                     partial.add(l);
-                    System.out.println(l);
-                }
-            }
-        }
-
-        System.out.println(s.size() + " " +partial.size());
-        System.out.println(partial);
-    }
-
-
+HashMap<String,List<Pizza>> bestScoreMap = new HashMap();
     public PizScore best(List<Pizza> l,int size) {
+
 
     int bestScore =0;
         int prevScore =0;
         int prevCount =0;
-     List<Pizza> best = new ArrayList();
-        List<Pizza> usedList = new ArrayList();
+        PriorityQueue<Pizza> best = new PriorityQueue();
+        PriorityQueue<Pizza> usedList = new PriorityQueue();
      //1,2 - 1   --o,1
 
     for(int x=0;x<=l.size()-size;x++) {
 
-//        Pizza p = l.get(x);
-//        List<Pizza> list =  l.stream().filter(pizza -> {
-//            long countNew2 = pizza.getIngredients().stream()
-//                    .filter((s) -> !pizza.getIngredients().contains(s)).count();
-//            return countNew2>0;
-//        }).collect(Collectors.toList());
-//        if(list.size()<1)
-//            list = l;
-      //  List<Pizza> list = l;
 
-                AtomicInteger groupPoints = new AtomicInteger();
-        HashSet used = new HashSet();
-        List<Pizza> b = new ArrayList();
+        AtomicInteger groupPoints = new AtomicInteger();
+        HashSet<String> used = new HashSet();
+        PriorityQueue<Pizza> b = new PriorityQueue();
         for (int y = 0; y < size && y+x< l.size(); y++) {
            // Pizza p = list.get(x+y);
-             l.stream().filter(pizza -> {
-                 return !usedList.contains(pizza);
-             }).filter(pizza -> {
-                long countNew2 = pizza.getIngredients().stream()
-                        .filter((s) -> !used.contains(s)).count();
-                return countNew2>0;
-            }).findAny().ifPresentOrElse(pizza -> {
+
+            String k =  used.stream().map(s -> s).reduce("",(s, s2) -> s+s2);
+            List<Pizza> sorted =  bestScoreMap.get(k);
+            if(sorted ==null ){
+
+                sorted= l.stream().filter(pizza -> {
+                    return !usedList.contains(pizza);
+                }).filter(pizza -> {
+                    long countNew2 = pizza.getIngredients().stream()
+                            .filter((s) -> !used.contains(s)).count();
+                    return countNew2>0;
+//                }).sorted((o1, o2) -> {
+//                    return o2.getIngredients().size()-o1.getIngredients().size();
+                }).limit(100).collect(Collectors.toList());
+                bestScoreMap.put(k,sorted);
+            }
+
+            sorted.stream().filter(pizza -> l.contains(pizza)).findAny().ifPresentOrElse(pizza -> {
                  long countNew2 = pizza.getIngredients().stream()
                          .filter((s) -> !used.contains(s)).count();
                  groupPoints.addAndGet((int) countNew2);
@@ -304,12 +277,16 @@ record PizScore(List<SolutionHashcode5.Pizza> list, int ingredients){};
                 List<Pizza> inner =
                  l.stream().filter(pizza -> {
                      return !usedList.contains(pizza);
-                 }).collect(Collectors.toList());
+                 }).limit(100).collect(Collectors.toList());
+                bestScoreMap.put(k,inner);
                // .findFirst().ifPresent(pizza -> {
-                 Pizza pizza =  inner.get(inner.size()-1);
-                     long countNew2 = pizza.getIngredients().stream()
+                Pizza pizza =   inner.get(0);//inner.get(inner.size()-1);
+                long countNew = pizza.getIngredients().stream()
+                        .filter((s) -> !used.contains(s)).count();
+                 Pizza pizza2 = inner.get(inner.size()-1);// inner.get(0);
+                     long countNew2 = pizza2.getIngredients().stream()
                              .filter((s) -> !used.contains(s)).count();
-                     groupPoints.addAndGet((int) countNew2);
+                     groupPoints.addAndGet((int) countNew);
                      used.addAll(pizza.getIngredients());
                      b.add(pizza);
                      usedList.add(pizza);
@@ -325,7 +302,7 @@ record PizScore(List<SolutionHashcode5.Pizza> list, int ingredients){};
 
         if(groupPoints.get() >bestScore) {
             bestScore = groupPoints.get();
-            best = new ArrayList<>(b);
+            best = new PriorityQueue(b);
         }
 
         if(prevScore <= bestScore){
@@ -338,56 +315,19 @@ record PizScore(List<SolutionHashcode5.Pizza> list, int ingredients){};
 
         //if max marks obtained -- short circuit
         int t =b.stream().mapToInt(value -> value.getIngredients().size()).sum();
-if(t==bestScore){//found max score..short
-    System.out.println("shortcircuit bestScore "+ "%s of %s ".formatted(x,l.size())+ " "+bestScore);
-    return new PizScore(best,bestScore);
-}
+        if(t==bestScore){//found max score..short
+            System.out.println("shortcircuit bestScore "+ "%s of %s ".formatted(x,l.size())+ " "+bestScore);
+
+            return new PizScore(best,bestScore);
+        }
         //if x checks yield same best.. break
-        if(prevCount>4){ //(l.size()/10)
+        if(prevCount>6){ //(l.size()/10)
             System.out.println("shortcircuit "+ "%s of %s ".formatted(x,l.size()));
             return new PizScore(best,bestScore);
         }
 
     }
-    return new PizScore(best,bestScore);
-    }
-    public  void permutations2(List<String> s)
-    {
-        // create an empty ArrayList to store (partial) permutations
-        List<List<String>> partial = new ArrayList<>();
-
-        // initialize the list with the first character
-        partial.add(List.of(s.get(0)));
-
-        // do for every character of the specified list
-        for (int i = 1; i < s.size(); i++)
-        {
-            // consider previously constructed partial permutation one by one
-
-            // (iterate backwards to avoid ConcurrentModificationException)
-            for (int j = partial.size() - 1; j >= 0 ; j--)
-            {
-                // remove current partial permutation from the ArrayList
-                List<String> str = partial.remove(j);
-
-                // Insert next character of the specified string in all
-                // possible positions of current partial permutation. Then
-                // insert each of these newly constructed string in the list
-
-                for (int k = 0; k <= str.size(); k++)
-                {
-                    // partial.add(str.substring(0, k) + s.charAt(i) + str.substring(k));
-                    List<String> l = new ArrayList<>(str.subList(0, k));
-                    l.add(s.get(i));
-                    l.addAll(str.subList(k, str.size()));
-                    partial.add(l);
-                    System.out.println(l);
-                }
-            }
-        }
-
-        System.out.println(s.size() + " " +partial.size());
-        System.out.println(partial);
+        return new PizScore(best,bestScore);
     }
 
 }
