@@ -41,7 +41,8 @@ static  List<String> allOutput = new ArrayList<>();
                 "b",
                 "c",
                 "d",
-                "e"};
+                "e",
+        "f"};
 
         Thread[]threads = new Thread[inputs.length];
         // start all threads
