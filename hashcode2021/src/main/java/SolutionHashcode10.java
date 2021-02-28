@@ -1,4 +1,6 @@
 import java.io.*;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -27,33 +29,47 @@ public class SolutionHashcode10 {
     static String inputFilesDirectory = new File("").getAbsolutePath()+"/src/main/resources/"; // Location of input files
     static String outputFilesDirectory = new File("").getAbsolutePath()+"/src/main/resources/"; // Location of output files
 //System.out.println (filePath);
-
+static  List<String> allOutput = new ArrayList<>();
 
 
   //  record PizScore(PriorityQueue<SolutionHashcode10.Pizza> list, int ingredients){};
 
 
-    public static void main(String[] args) {
-        String[] inputs = new String[] {"resources/inputs/a.txt",
-                "resources/inputs/b.txt",
-                "resources/inputs/c.txt",
-                "resources/inputs/d.txt",
-                "resources/inputs/e.txt"};
-//        for (int i = 0; i < inputs.length; ++i) {
-//            pizzaDeliverer(inputs[i]);
-//            break;
-//        }
+    public static void main(String[] args) throws InterruptedException {
+        String[] inputs = new String[] {
+                "a",// "resources/inputs/a",
+                "b",
+                "c",
+                "d",
+                "e"};
 
+        Thread[]threads = new Thread[inputs.length];
+        // start all threads
+        for (int i = 0; i < inputs.length; ++i) {
+
+            int finalI = i;
+            threads[i] =new Thread(() -> {
+                var result = new SolutionHashcode10();
+                result.pizzaDeliverer(inputs[finalI]);
+            });
+
+            threads[i].start();
+        }
+        for(int i=0; i<threads.length; i++) {
+            threads[i].join(); // TODO Exception handling
+        }
+
+        allOutput.forEach(s -> System.out.println(s));
         //  pizzaDeliverer(args[1]);
-        var result = new SolutionHashcode10();
-        result.pizzaDeliverer("a");
+//        var result = new SolutionHashcode10();
+//        result.pizzaDeliverer("d");
 
         //  result.permutations(List.of("A","B","C","D","E","F","G","H","I","J","K","L","M","N"));
     }
     record Street(int id,String name,int start,int end,int time,Queue<Car> cars){}
 
 
-    record Intersection(int id,List<Street> streets,List<String> path){}
+    record Intersection(int id,List<Street> streets,Map<String,Integer> lights){}
 
     record Sched(String street,int seconds){}
 
@@ -62,6 +78,8 @@ public class SolutionHashcode10 {
     Integer marks =0;
 
     private void pizzaDeliverer(String fileName){
+        Instant startTime = Instant.now();
+
         // Read the input file by name
         // BufferedReader fr = new BufferedReader(new FileReader(inputFilesDirectory + fileName + ".in"));
         try (BufferedReader br = new BufferedReader(new FileReader(inputFilesDirectory + fileName + ".txt"))) {
@@ -69,14 +87,16 @@ public class SolutionHashcode10 {
             String[] firstLine = br.readLine().split(" ");
 
             int time = Integer.parseInt(firstLine[0]);
+            int totalTime=time;
             int intersection = Integer.parseInt(firstLine[1]);
             int street = Integer.parseInt(firstLine[2]);
             int car = Integer.parseInt(firstLine[3]);
             int bonus = Integer.parseInt(firstLine[4]);
+            List<Car> arrivedCars = new ArrayList<>();
 
             Intersection[] intersections = new Intersection[intersection];
             for(int x=0;x<intersection;x++){
-                intersections[x] = new Intersection(x,new ArrayList(),new ArrayList());
+                intersections[x] = new Intersection(x,new ArrayList(),new HashMap<>());
 
             }
 
@@ -125,7 +145,7 @@ public class SolutionHashcode10 {
 
             int forwardtime =0;
             while(time >0){
-                System.out.printf("time  %s rem %s \n",forwardtime,time);
+                System.out.printf("%s time  %s/%s rem %s \n",fileName,forwardtime,totalTime,time);
 
                 int finalForwardtime = forwardtime;
                 Queue<Car> process = new LinkedList();
@@ -136,29 +156,33 @@ public class SolutionHashcode10 {
                     list.sort(
                         (Comparator.<Street>
                                 comparingInt(s ->{
-                            AtomicInteger delay= new AtomicInteger();
                             AtomicInteger m= new AtomicInteger();
+                            AtomicInteger carPosdelay = new AtomicInteger(0);
                             s.cars().forEach(car1 -> {
-                                int timeSaved = finalTime1 - (car1.distanceLeft+delay.get());
+                                int timeSaved = finalTime1 - (car1.distanceLeft+carPosdelay.get());
                                 if(timeSaved>0) {//can finish
-                                    m.getAndAdd( 1000 + timeSaved);
+                                    m.getAndAdd( bonus + timeSaved);
                                 }
-                                delay.getAndAdd(1);
+                                carPosdelay.getAndIncrement();
                             });
-                            System.out.printf("path  %s bestmarks  %s \n",s.name(),m.get());
+                         //   System.out.printf("path  %s bestmarks  %s \n",s.name(),m.get());
                             return m.get();
 
                         } ).reversed()
                         ));//new ArrayList(streets.values());
 
 
-                list = list.stream().filter(street1 -> {return street1.cars().size()>0;}).collect(Collectors.toList());
+                list = list.stream()
+                        .filter(street1 -> {return street1.cars().size()>0;})
+                        .collect(Collectors.toList());
                 if(list.size()>0) {
+
                     Street s = list.get(0);
+                    System.out.printf("%s time %s/%s intersection  %s road %s cars %s\n",fileName,finalForwardtime,totalTime,intersection1.id,s.name(),s.cars().size());
 
                     Car c= s.cars().peek();
                     if(c.days <=0){
-                        System.out.printf("time  %s process later id: %s %s\n",finalForwardtime,c.id,s.name());
+                        System.out.printf("%s time %s/%s process later id: %s %s\n",fileName,finalForwardtime,totalTime,c.id,s.name());
                         c= s.cars().poll();
                         process.add(c);
                     }
@@ -172,7 +196,7 @@ public class SolutionHashcode10 {
                                            // .filter(car1 -> { return car1.days >=0;})
                                         .forEach(car1 -> {
 //                                            if(car1.days >0){
-                                                System.out.printf("car %s move remaining %s/%s on %s\n",car1.id, --car1.days,street1.time,street1.name());
+                                                System.out.printf("time %s car %s move remaining %s/%s on %s\n",finalForwardtime,car1.id, --car1.days,street1.time,street1.name());
 //                                            }else{//move
 //                                                System.out.printf("time %s wait cars ahead car %s days %s queue: %s on %s \n"
 //                                                        ,finalForwardtime,car1.id, car1.days,street1.cars().size(),street1.name());
@@ -192,22 +216,26 @@ public class SolutionHashcode10 {
                     int finalTime = time-(c.days+1);
 
                     Street st = c.path.poll();
+
                     Street stnext = c.path.peek();//dont separate
+                    if(stnext !=null) {
+
+                        Integer count =  intersections[st.end].lights().getOrDefault(st.name(),0);
+                        intersections[st.end].lights().put(st.name(),++count);
 
                         c.days = stnext.time;
                         c.distanceLeft -= stnext.time();
 
-                    intersections[st.end].path().add(st.name());
-
-                   // if(stnext !=null) {
-                    stnext.cars().add(c);
-                    String ids= stnext.cars().stream()
-                            .map(car1 -> { return "-" + car1.id; })
-                            .reduce("", (s1, s2) -> s1 + s2);
+                        stnext.cars().add(c);
+                        String ids = stnext.cars().stream()
+                                .map(car1 -> {
+                                    return "-" + car1.id;
+                                })
+                                .reduce("", (s1, s2) -> s1 + s2);
 
                         System.out.printf("time %s Car %s useddays: %s cross %s to %s - wait: %s cars: %s size: %s \n", finalForwardtime,
-                                c.id,c.days, stnext.start, stnext.name(),stnext.time,ids,stnext.cars().size());
-
+                                c.id, c.days, stnext.start, stnext.name(), stnext.time, ids, stnext.cars().size());
+                    }
 
                     if(c.path.size()==1){ //at end
                         System.out.printf("time %s pop out car %s dist: %s/%s \n",finalForwardtime,c.id,c.distanceLeft,c.initDistanceLeft);
@@ -218,8 +246,9 @@ public class SolutionHashcode10 {
                             mark=0;
                         }
                         marks +=mark;
-                        System.out.printf("car %s marks %s total %s\n",c.id, mark,marks);
-
+                        System.out.printf("time %s car %s marks %s total %s\n",finalForwardtime,c.id, mark,marks);
+                        arrivedCars.add(c);
+                        st.cars().remove(c);
                     }
                 }
 
@@ -229,10 +258,8 @@ public class SolutionHashcode10 {
 
            // list = list.stream().filter(street1 -> {return street1.cars().size()>0;}).collect(Collectors.toList());
 
-
-            List<Intersection> out =new ArrayList(Arrays.asList(intersections));
-            List<Intersection> outlist  = out.stream().filter(i -> {
-                return i.path().size()>0;
+            List<Intersection> outlist  = Arrays.asList(intersections).stream().filter(i -> {
+                return i.lights().size()>0;
             }).collect(Collectors.toList());
 
 
@@ -240,36 +267,31 @@ public class SolutionHashcode10 {
             try (PrintWriter output = new PrintWriter(outputFilesDirectory + fileName + ".out", "UTF-8")) {
                 output.println(outlist.size());
                 System.out.println(outlist.size());
-                String outs="";
 
                 for (Intersection i : outlist) {
-                    String st = "";
-                    outs = "";
-                    int items =0;
-                    int groups =0;
-                    st = i.path().get(0);
-                    for(int j=0;j<i.path().size();j++){
 
-                        String pp =i.path().get(j);
-                        if(st.equalsIgnoreCase(pp)){
-                            items++;
-                        }else{
-                            groups ++;
-                            outs+=pp + " " + items + "\n";
-                            st = pp;
-                            items=0;
-                        }
-                    }
-                    outs=i.id() +"\n"+ ++groups +"\n" + st + " " + items + "\n"+ outs;
-                    System.out.print(outs);
-                    output.print(outs);
-                    System.out.println("total "+ marks);
+                    int items =0;
+                    int groups = i.lights().keySet().size()-1;
+                    final String[] out = {i.id() + "\n" + ++groups + "\n"};
+                  i.lights().forEach((s, count) -> {
+                      out[0] += s +" "+ count + "\n";
+                  });
+                    System.out.print(out[0]);
+                    output.print(out[0]);
+
+                    String o = String.format(fileName +" cars arrived: %s/%s intersections %s/%s total %s ",arrivedCars.size(),cars.length
+                            ,outlist.size(),intersections.length,marks);
+                    System.out.println(o);
+                    allOutput.add(o);
 
                 }
             }
 
-            System.out.println("");
 
+            Instant end = Instant.now();
+            Duration interval = Duration.between(startTime, end);
+            System.out.println(fileName +" Execution time in seconds: " + interval.getSeconds());
+            allOutput.add(fileName +" Execution time in seconds: " + interval.getSeconds());
 
 
         } catch (IOException e) {
