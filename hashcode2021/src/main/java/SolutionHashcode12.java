@@ -4,24 +4,23 @@ import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
-import static java.util.stream.Collectors.groupingBy;
 
-
-public class SolutionHashcode10 {
+public class SolutionHashcode12 {
 
     class Car {
         public Car(int id,Queue<Street> path,int days,int distanceLeft){
             this.id=id;
             this.path=path;
-            this.days=days;
+            this.earliestReleaseDay=days;
             this.distanceLeft= distanceLeft;
 
         }
         int id;
         Queue<Street> path;
-        int days;
+        int earliestReleaseDay;
         int distanceLeft;
         int initDistanceLeft;
 
@@ -38,7 +37,7 @@ static  List<String> allOutput = new ArrayList<>();
     public static void main(String[] args) throws InterruptedException {
         String[] inputs = new String[]{
                 "a"// "resources/inputs/a",
-                , "b"
+                , "d"
 //
 // ,"c"
 //                ,"d"
@@ -52,7 +51,7 @@ static  List<String> allOutput = new ArrayList<>();
 
             int finalI = i;
             threads[i] =new Thread(() -> {
-                var result = new SolutionHashcode10();
+                var result = new SolutionHashcode12();
                 result.pizzaDeliverer(inputs[finalI]);
             });
 
@@ -153,25 +152,58 @@ static  List<String> allOutput = new ArrayList<>();
                 int finalForwardtime = forwardtime;
                 Queue<Car> process = new LinkedList();
                 int finalTime1 = time;
-                Arrays.stream(intersections).forEach(intersection1 -> {
+                AtomicInteger earliestJump = new AtomicInteger(forwardtime);
+                List<Intersection> l =
+                Arrays.stream(intersections)
+                        .filter(intersection1 -> {
+                            return intersection1.streets().stream()
+                                    .filter(street1 -> {
+                                        return street1.cars().stream()
+                                                .filter(car1 -> car1.earliestReleaseDay - finalForwardtime <= 0)
+                                                .count() > 0;
+                                    })
+                                    .count() > 0;
+                        }).collect(Collectors.toList());
+
+                System.out.printf("%s time  %s/%s filtered intersections %s/%s \n"
+                        ,fileName,forwardtime,totalTime,time,l.size(),intersection);
+                if(l.size()==0){
+                    System.out.printf("%s time wasted second no cars ready anywhere \n"
+                            ,fileName,forwardtime,totalTime,time);
+                }
+
+                        l.forEach(intersection1 -> {
 
                     List<Street> list = new ArrayList<>(intersection1.streets());
                     list.sort(
                         (Comparator.<Street>
                                 comparingInt(s ->{
-                            AtomicInteger m= new AtomicInteger();
-                            AtomicInteger carPosdelay = new AtomicInteger(0);
-                            s.cars().forEach(car1 -> {
-                                int timeSaved = finalTime1 - (car1.distanceLeft+carPosdelay.get());
-                                if(timeSaved>0) {//can finish
-                                    m.getAndAdd( bonus + timeSaved);
-                                }
-                                carPosdelay.getAndIncrement();
-                            });
-                         //   System.out.printf("path  %s bestmarks  %s \n",s.name(),m.get());
-                            return m.get();
+                         //   AtomicInteger m= new AtomicInteger();
+                           // AtomicInteger carPosdelay = new AtomicInteger(0);
+                          int a =  s.cars().stream().map(car1 -> {//.limit(1)
 
-                        } ).reversed()
+                                return car1.earliestReleaseDay;
+//                                //distance ahead depends on current street car sizes
+//                                //removelast size
+//                                AtomicInteger laststreetwait = new AtomicInteger();
+//                               int carPosdelay = car1.path.stream().map(street1 -> {
+//                                   int size = street1.cars().size();
+//                                   int wait = size - street1.time();
+//                                   wait= wait<0?0:wait;
+//                                   laststreetwait.set(wait);
+//                                   return wait;}).reduce(0,(a, b) -> a+b);
+//                                carPosdelay-=laststreetwait.get();
+//
+//                                int timeSaved = finalTime1 - (car1.distanceLeft+carPosdelay);
+//                                if(timeSaved>=0) {//can finish
+//                                    m.getAndAdd( bonus + timeSaved);
+//                                }
+                            //    carPosdelay.getAndIncrement();
+                            }).reduce(0,(integer, integer2) -> integer+integer2);
+                         //   System.out.printf("path  %s bestmarks  %s \n",s.name(),m.get());
+                            return a;
+ }
+                        )//.reversed()
                         ));//new ArrayList(streets.values());
 
 
@@ -184,30 +216,34 @@ static  List<String> allOutput = new ArrayList<>();
                     System.out.printf("%s time %s/%s intersection  %s road %s cars %s\n",fileName,finalForwardtime,totalTime,intersection1.id,s.name(),s.cars().size());
 
                     Car c= s.cars().peek();
-                    if(c.days <=0){
+                    earliestJump.set((c.earliestReleaseDay < earliestJump.get()) ?
+                            c.earliestReleaseDay:earliestJump.get());
+                    if(c.earliestReleaseDay-finalForwardtime <=0){
                         System.out.printf("%s time %s/%s process later id: %s %s\n",fileName,finalForwardtime,totalTime,c.id,s.name());
                         c= s.cars().poll();
                         process.add(c);
+                    }else{
+                        System.out.printf("%s time %s/%s no car ready closest dist: %s/%s id: %s %s\n",fileName,finalForwardtime,totalTime,c.earliestReleaseDay,s.time,c.id,s.name());
+
                     }
 
-
-                    //stopped streets just deduct time or wait red
-                    list.stream()
-                            //.filter(street1 -> {return street1!=s;})
-                            .forEach(street1 -> {
-                                street1.cars().stream()
-                                           // .filter(car1 -> { return car1.days >=0;})
-                                        .forEach(car1 -> {
-//                                            if(car1.days >0){
-                                                System.out.printf("time %s car %s move remaining %s/%s on %s\n",finalForwardtime,car1.id, --car1.days,street1.time,street1.name());
-//                                            }else{//move
-//                                                System.out.printf("time %s wait cars ahead car %s days %s queue: %s on %s \n"
-//                                                        ,finalForwardtime,car1.id, car1.days,street1.cars().size(),street1.name());
+//                    //stopped streets just deduct time or wait red
+//                    list.stream()
+//                            //.filter(street1 -> {return street1!=s;})
+//                            .forEach(street1 -> {
+//                                street1.cars().stream()
+//                                           // .filter(car1 -> { return car1.days >=0;})
+//                                        .forEach(car1 -> {
+////                                            if(car1.days >0){
+//                                                System.out.printf("time %s car %s move remaining %s/%s on %s\n",finalForwardtime,car1.id, --car1.days,street1.time,street1.name());
+////                                            }else{//move
+////                                                System.out.printf("time %s wait cars ahead car %s days %s queue: %s on %s \n"
+////                                                        ,finalForwardtime,car1.id, car1.days,street1.cars().size(),street1.name());
+////
+// //                                          }
+//                                        });
 //
- //                                          }
-                                        });
-
-                            });
+//                            });
 
                 }
 
@@ -216,7 +252,6 @@ static  List<String> allOutput = new ArrayList<>();
                 //moving time
                 while(!process.isEmpty()){
                     Car c = process.poll();
-                    int finalTime = time-(c.days+1);
 
                     Street st = c.path.poll();
 
@@ -226,7 +261,7 @@ static  List<String> allOutput = new ArrayList<>();
                         Integer count =  intersections[st.end].lights().getOrDefault(st.name(),0);
                         intersections[st.end].lights().put(st.name(),++count);
 
-                        c.days = stnext.time;
+                        c.earliestReleaseDay = forwardtime+ stnext.time;
                         c.distanceLeft -= stnext.time();
 
                         stnext.cars().add(c);
@@ -236,12 +271,14 @@ static  List<String> allOutput = new ArrayList<>();
                                 })
                                 .reduce("", (s1, s2) -> s1 + s2);
 
-                        System.out.printf("time %s Car %s useddays: %s cross %s to %s - wait: %s cars: %s size: %s \n", finalForwardtime,
-                                c.id, c.days, stnext.start, stnext.name(), stnext.time, ids, stnext.cars().size());
+                        System.out.printf("time %s/%s Car %s earliestReleaseDay: %s cross %s to %s - wait: %s cars: %s size: %s \n"
+                                , finalForwardtime,totalTime,
+                                c.id, c.earliestReleaseDay, stnext.start, stnext.name(), stnext.time, ids, stnext.cars().size());
                     }
 
                     if(c.path.size()==1){ //at end
-                        System.out.printf("time %s pop out car %s dist: %s/%s \n",finalForwardtime,c.id,c.distanceLeft,c.initDistanceLeft);
+                        System.out.printf("time %s/%s pop out car %s dist: %s/%s \n"
+                                ,finalForwardtime,totalTime,c.id,c.distanceLeft,c.initDistanceLeft);
                         int mark = time-(c.distanceLeft);//+ st.cars().size()-1);
                         if(mark>=0){
                             mark +=  bonus;
@@ -249,10 +286,20 @@ static  List<String> allOutput = new ArrayList<>();
                             mark=0;
                         }
                         marks +=mark;
-                        System.out.printf("time %s car %s marks %s total %s\n",finalForwardtime,c.id, mark,marks);
+                        System.out.printf("time %s/%s car %s marks %s total %s\n"
+                                ,finalForwardtime,totalTime,c.id, mark,marks);
                         arrivedCars.add(c);
                         st.cars().remove(c);
                     }
+                }
+                if(earliestJump.get()>forwardtime){
+                   int futuretime= totalTime-earliestJump.get();
+
+                    System.out.printf("time %s/%s time jump to %s from %s total %s\n"
+                            ,finalForwardtime,totalTime, earliestJump.get(),futuretime,marks);
+
+                    time = futuretime;
+                    continue;
                 }
 
                 forwardtime++;

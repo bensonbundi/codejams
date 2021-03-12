@@ -6,10 +6,8 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
-import static java.util.stream.Collectors.groupingBy;
 
-
-public class SolutionHashcode10 {
+public class SolutionHashcode11 {
 
     class Car {
         public Car(int id,Queue<Street> path,int days,int distanceLeft){
@@ -38,7 +36,7 @@ static  List<String> allOutput = new ArrayList<>();
     public static void main(String[] args) throws InterruptedException {
         String[] inputs = new String[]{
                 "a"// "resources/inputs/a",
-                , "b"
+                , "d"
 //
 // ,"c"
 //                ,"d"
@@ -52,7 +50,7 @@ static  List<String> allOutput = new ArrayList<>();
 
             int finalI = i;
             threads[i] =new Thread(() -> {
-                var result = new SolutionHashcode10();
+                var result = new SolutionHashcode11();
                 result.pizzaDeliverer(inputs[finalI]);
             });
 
@@ -160,13 +158,25 @@ static  List<String> allOutput = new ArrayList<>();
                         (Comparator.<Street>
                                 comparingInt(s ->{
                             AtomicInteger m= new AtomicInteger();
-                            AtomicInteger carPosdelay = new AtomicInteger(0);
-                            s.cars().forEach(car1 -> {
-                                int timeSaved = finalTime1 - (car1.distanceLeft+carPosdelay.get());
+                           // AtomicInteger carPosdelay = new AtomicInteger(0);
+                            s.cars().stream().limit(1).forEach(car1 -> {
+
+                                //distance ahead depends on current street car sizes
+                                //removelast size
+                                AtomicInteger laststreetwait = new AtomicInteger();
+                               int carPosdelay = car1.path.stream().map(street1 -> {
+                                   int size = street1.cars().size();
+                                   int wait = size - street1.time();
+                                   wait= wait<0?0:wait;
+                                   laststreetwait.set(wait);
+                                   return wait;}).reduce(0,(a, b) -> a+b);
+                                carPosdelay-=laststreetwait.get();
+
+                                int timeSaved = finalTime1 - (car1.distanceLeft+carPosdelay);
                                 if(timeSaved>0) {//can finish
                                     m.getAndAdd( bonus + timeSaved);
                                 }
-                                carPosdelay.getAndIncrement();
+                            //    carPosdelay.getAndIncrement();
                             });
                          //   System.out.printf("path  %s bestmarks  %s \n",s.name(),m.get());
                             return m.get();
@@ -236,12 +246,14 @@ static  List<String> allOutput = new ArrayList<>();
                                 })
                                 .reduce("", (s1, s2) -> s1 + s2);
 
-                        System.out.printf("time %s Car %s useddays: %s cross %s to %s - wait: %s cars: %s size: %s \n", finalForwardtime,
+                        System.out.printf("time %s/%s Car %s useddays: %s cross %s to %s - wait: %s cars: %s size: %s \n"
+                                , finalForwardtime,totalTime,
                                 c.id, c.days, stnext.start, stnext.name(), stnext.time, ids, stnext.cars().size());
                     }
 
                     if(c.path.size()==1){ //at end
-                        System.out.printf("time %s pop out car %s dist: %s/%s \n",finalForwardtime,c.id,c.distanceLeft,c.initDistanceLeft);
+                        System.out.printf("time %s/%s pop out car %s dist: %s/%s \n"
+                                ,finalForwardtime,totalTime,c.id,c.distanceLeft,c.initDistanceLeft);
                         int mark = time-(c.distanceLeft);//+ st.cars().size()-1);
                         if(mark>=0){
                             mark +=  bonus;
@@ -249,7 +261,8 @@ static  List<String> allOutput = new ArrayList<>();
                             mark=0;
                         }
                         marks +=mark;
-                        System.out.printf("time %s car %s marks %s total %s\n",finalForwardtime,c.id, mark,marks);
+                        System.out.printf("time %s/%s car %s marks %s total %s\n"
+                                ,finalForwardtime,totalTime,c.id, mark,marks);
                         arrivedCars.add(c);
                         st.cars().remove(c);
                     }
